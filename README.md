@@ -1,3 +1,13 @@
+Nexus
+=====
+Currently Nexus utilizes a single directory within the bbb codebase: labs/bbb-api-php
+
+We import this library into our codebase by 
+
+1. fork of bigbluebutton to kdflint/bigbluebutton-ship
+2. fork of kdflint/bigbluebutton-ship to NorthBridge/bigbluebutton-community
+3. symbolic link from bbb-api-php folder to nexus codebase
+
 BigBlueButton
 =============
 BigBlueButton is an open source web conferencing system for on-line learning.  

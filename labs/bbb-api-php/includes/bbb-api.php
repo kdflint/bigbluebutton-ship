@@ -62,7 +62,7 @@ class BigBlueButton {
 		$this->_bbbServerBaseUrl 	= CONFIG_SERVER_BASE_URL;		
 	}
 	
-	private function _processXmlResponse($url, $xml = ''){
+	private function _processXmlResponse($url, $xml = '', $contentType = 'application/xml'){
 	/* 
 	A private utility method used by other public methods to process XML responses.
 	*/
@@ -79,7 +79,7 @@ class BigBlueButton {
 				curl_setopt($ch, CURLOPT_POST, 1);
 				curl_setopt($ch, CURLOPT_POSTFIELDS, $xml);
 				curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-                                       'Content-type: application/xml',
+                                       'Content-type: ' . $contentType,
                                        'Content-length: ' . strlen($xml)
                                      ));
 			}
@@ -230,8 +230,9 @@ class BigBlueButton {
 		'meetingID='.urlencode($this->_meetingId).
 		'&fullName='.urlencode($this->_username).
 		'&password='.urlencode($this->_password).
-		'&userID='.urlencode($joinParams['userId']).
-		'&webVoiceConf='.urlencode($joinParams['webVoiceConf']);		
+		//'&userID='.urlencode($joinParams['userId']).
+		//'&webVoiceConf='.urlencode($joinParams['webVoiceConf']).
+		'&configToken='.urlencode($joinParams['configToken']);		
 		// Only use createTime if we really want to use it. If it's '', then don't pass it:
 		if (((isset($joinParams['createTime'])) && ($joinParams['createTime'] != ''))) {
 			$params .= '&createTime='.urlencode($joinParams['createTime']);
@@ -513,6 +514,25 @@ class BigBlueButton {
 					}						
 				return $result;				
 			}
+		}
+		else {
+			return null;
+		}
+	}
+	
+	// TODO - follow params input pattern
+	public function setMeetingConfig($configXmlIn, $meetingId) {
+		$configUrl = $this->_bbbServerBaseUrl."api/setConfigXML?";
+		$configXml = urlencode($configXmlIn);
+		$params = "configXML=".$configXml."&meetingID=".$meetingId;
+		$checksum = sha1("setConfigXML".$params.$this->_securitySalt);		
+		$configPostFields =	$params.'&checksum='.$checksum;
+		$response = $this->_processXmlResponse($configUrl, $configPostFields, 'application/x-www-form-urlencoded');
+		if($response) {
+			return array(
+				'returncode' => $response->returncode, 
+				'token' => $response->configToken
+				);
 		}
 		else {
 			return null;

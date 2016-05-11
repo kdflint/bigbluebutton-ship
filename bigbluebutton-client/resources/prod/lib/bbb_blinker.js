@@ -7,6 +7,19 @@ function clientReady(message){
 	if (target) target.innerHTML = message;
 }
 
+function setProgressBar(percent){
+	var bar = document.getElementById("accessibile-progress");
+	if (bar) {
+		bar.setAttribute("aria-valuenow", percent);
+		bar.innerHTML = percent + " " + "%";
+	}
+}
+
+function removeProgressBar(){
+	var bar = document.getElementById("accessibile-progress");
+	if (bar) bar.parentNode.removeChild(bar);
+}
+
 function determineModifier()
 {
 	var browser = determineBrowser()[0];
@@ -73,6 +86,20 @@ function determineBrowser()
 		browserName = "Microsoft Internet Explorer";
 		fullVersion = nAgt.substring(verOffset+5);
 	}
+	// In Puffin, the true version is after "Puffin" in userAgent
+	else if ((verOffset=nAgt.indexOf("Puffin"))!=-1) {
+		browserName = "Puffin";
+		fullVersion = nAgt.substring(verOffset+7);
+	}
+	// search for Edge before Chrome or Safari because Microsoft
+	// includes Chrome and Safari user agents in Edge's UA
+	// In Microsoft Edge, the true version is the last chunk of the UA
+	// it follows "Edge"
+	else if ((verOffset=nAgt.indexOf("Edge"))!=-1) {
+		browserName = "Edge";
+		// "Edge".length = 4, plus 1 character for the trailing slash
+		fullVersion = nAgt.substring(verOffset+5);
+	}
 	// In Chrome, the true version is after "Chrome" 
 	else if ((verOffset=nAgt.indexOf("Chrome"))!=-1) {
 		browserName = "Chrome";
@@ -111,5 +138,5 @@ function determineBrowser()
 		majorVersion = parseInt(navigator.appVersion,10);
 	}
 	
-	return [browserName, majorVersion];
+	return [browserName, majorVersion, fullVersion];
 }

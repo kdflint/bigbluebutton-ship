@@ -26,6 +26,7 @@ package org.bigbluebutton.modules.deskshare.utils
 	import org.bigbluebutton.core.BBB;
 	import org.bigbluebutton.main.events.ClientStatusEvent;
 	import org.bigbluebutton.util.i18n.ResourceUtil;
+	import org.bigbluebutton.modules.deskshare.utils.BrowserCheck;
 	
 	public class JavaCheck {
     public static function checkJava():String {
@@ -44,7 +45,9 @@ package org.bigbluebutton.modules.deskshare.utils
         return null;        
      
       } else if (isJavaOk.result == "JAVA_NOT_INSTALLED") {
-        dispatcher.dispatchEvent(new ClientStatusEvent(ClientStatusEvent.FAIL_MESSAGE_EVENT, ResourceUtil.getInstance().getString("bbb.clientstatus.java.title"), ResourceUtil.getInstance().getString("bbb.clientstatus.java.notinstalled")));
+        if (!BrowserCheck.isChrome42OrHigher()) {
+          dispatcher.dispatchEvent(new ClientStatusEvent(ClientStatusEvent.FAIL_MESSAGE_EVENT, ResourceUtil.getInstance().getString("bbb.clientstatus.java.title"), ResourceUtil.getInstance().getString("bbb.clientstatus.java.notinstalled")));
+        }
         return ResourceUtil.getInstance().getString("bbb.clientstatus.java.notinstalled");        
       } else if (isJavaOk.result == "JAVA_OLDER") {
         dispatcher.dispatchEvent(new ClientStatusEvent(ClientStatusEvent.FAIL_MESSAGE_EVENT, ResourceUtil.getInstance().getString("bbb.clientstatus.java.title"), ResourceUtil.getInstance().getString("bbb.clientstatus.java.oldversion")));
@@ -58,5 +61,5 @@ package org.bigbluebutton.modules.deskshare.utils
     private static function checkJavaVersion(minVersion: String):Object {
       return ExternalInterface.call("checkJavaVersion", minVersion);
     }
-	}
+  }
 }

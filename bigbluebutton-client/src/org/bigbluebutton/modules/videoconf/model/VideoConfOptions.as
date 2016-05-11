@@ -18,7 +18,10 @@
  */
 package org.bigbluebutton.modules.videoconf.model
 {
+	import flash.external.ExternalInterface;
+	
 	import org.bigbluebutton.core.BBB;
+	import org.bigbluebutton.main.api.JSAPI;
 	
 	public class VideoConfOptions
 	{
@@ -87,6 +90,8 @@ package org.bigbluebutton.modules.videoconf.model
 		}
 		
 		public function parseOptions():void {
+			var browserInfo : Array = JSAPI.getInstance().getBrowserInfo();
+			
 			var vxml:XML = BBB.getConfigForModule("VideoconfModule");
 			if (vxml != null) {
 				if (vxml.@uri != undefined) {
@@ -97,6 +102,10 @@ package org.bigbluebutton.modules.videoconf.model
 				}
 				if (vxml.@showButton != undefined) {
 					showButton = (vxml.@showButton.toString().toUpperCase() == "TRUE") ? true : false;
+					// If we are using Puffin browser
+					if (browserInfo[0] == "Puffin" && String(browserInfo[2]).substr(0, 3) < "4.6") {
+						showButton = false;
+					}
 				}
 				if (vxml.@autoStart != undefined) {
 					autoStart = (vxml.@autoStart.toString().toUpperCase() == "TRUE") ? true : false;
@@ -113,9 +122,9 @@ package org.bigbluebutton.modules.videoconf.model
 				if (vxml.@viewerWindowMaxed != undefined) {
 					viewerWindowMaxed = (vxml.@viewerWindowMaxed.toString().toUpperCase() == "TRUE") ? true : false;
 				}					
-        if (vxml.@skipCamSettingsCheck != undefined) {
-          skipCamSettingsCheck = (vxml.@skipCamSettingsCheck.toString().toUpperCase() == "TRUE") ? true : false;
-        }	        
+		        if (vxml.@skipCamSettingsCheck != undefined) {
+		          skipCamSettingsCheck = (vxml.@skipCamSettingsCheck.toString().toUpperCase() == "TRUE") ? true : false;
+		        }	        
 				if (vxml.@viewerWindowLocation != undefined) {
 					viewerWindowLocation = vxml.@viewerWindowLocation.toString().toUpperCase();
 				}				

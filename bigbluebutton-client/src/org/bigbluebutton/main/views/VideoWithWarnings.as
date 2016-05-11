@@ -1,27 +1,28 @@
 package org.bigbluebutton.main.views
 {
 
-    import com.asfusion.mate.events.Dispatcher;
+    import flash.events.ActivityEvent;
     import flash.events.StatusEvent;
     import flash.events.TimerEvent;
-    import flash.events.ActivityEvent;
     import flash.media.Camera;
-    import flash.media.Video
+    import flash.media.Video;
     import flash.net.NetStream;
     import flash.system.Security;
     import flash.system.SecurityPanel;
     import flash.utils.Timer;
-    import mx.containers.Canvas;
-    import mx.controls.Text;
-    import mx.core.UIComponent;
+    
     import mx.events.FlexEvent;
-    import org.bigbluebutton.common.LogUtil;
+    
+    import org.as3commons.logging.api.ILogger;
+    import org.as3commons.logging.api.getClassLogger;
     import org.bigbluebutton.core.model.VideoProfile;
     import org.bigbluebutton.util.i18n.ResourceUtil;
 
     public class VideoWithWarnings extends VideoWithWarningsBase {
 
-        private var hideWarningTimer:Timer = null;
+		private static const LOGGER:ILogger = getClassLogger(VideoWithWarnings);
+
+		private var hideWarningTimer:Timer = null;
         private var _camera:Camera = null;
         private var _activationTimer:Timer = null;
         private var _waitingForActivation:Boolean = false;
@@ -83,7 +84,7 @@ package org.bigbluebutton.main.views
             // _text.text = "The quick brown fox jumps over the lazy dog";
             _text.setStyle("styleName", styleName);
             _text.visible = true;
-            trace("Showing warning: " + text);
+            LOGGER.debug("Showing warning: {0}", [text]);
         }
 
         private function showError(resourceName:String, autoHide:Boolean=false):void {
@@ -97,9 +98,17 @@ package org.bigbluebutton.main.views
         public function set successCallback(f:Function):void {
             _successCallback = f;
         }
+        
+        public function get successCallback():Function {
+            return _successCallback;
+        }
 
         public function set failCallback(f:Function):void {
             _failCallback = f;
+        }
+        
+        public function get failCallback():Function {
+            return _failCallback;
         }
 
         private function onSuccessCallback():void {
@@ -118,7 +127,7 @@ package org.bigbluebutton.main.views
         private function onFailCallback(resourceName:String):void {
             showError(resourceName);
             if (_failCallback != null) {
-                _failCallback();
+                _failCallback(resourceName);
             }
             imgChromeHelp.visible = false;
         }
@@ -142,7 +151,7 @@ package org.bigbluebutton.main.views
                     if (_cameraAccessDenied) {
                         Security.showSettings(SecurityPanel.PRIVACY)
                     } else {
-                        showWarning('bbb.video.publish.hint.waitingApproval');
+                        onFailCallback('bbb.video.publish.hint.waitingApproval');
                     }
                 } else {
                     onCameraAccessAllowed();
@@ -157,16 +166,16 @@ package org.bigbluebutton.main.views
         }
 
         private function displayVideoPreview():void {
-            trace("Using this video profile:: " + _videoProfile.toString());
+            LOGGER.debug("Using this video profile:: {0}", [_videoProfile.toString()]);
             _camera.setMotionLevel(5, 1000);
             _camera.setKeyFrameInterval(_videoProfile.keyFrameInterval);
             _camera.setMode(_videoProfile.width, _videoProfile.height, _videoProfile.modeFps);
             _camera.setQuality(_videoProfile.qualityBandwidth, _videoProfile.qualityPicture);
 
             if (_camera.width != _videoProfile.width || _camera.height != _videoProfile.height)
-                trace("Resolution " + _videoProfile.width + "x" + _videoProfile.height + " is not supported, using " + _camera.width + "x" + _camera.height + " instead");
+                LOGGER.debug("Resolution {0}x{1} is not supported, using {2}x{3} instead", [_videoProfile.width, _videoProfile.height, _camera.width, _camera.height]);
 
-            _video.attachCamera(_camera);
+            	_video.attachCamera(_camera);
         }
 
         override protected function updateDisplayList(w:Number, h:Number):void {
@@ -225,7 +234,7 @@ package org.bigbluebutton.main.views
 
         private function onCameraAccessAllowed():void {
             // this is just to overwrite the message of waiting for approval
-            showWarning('bbb.video.publish.hint.openingCamera');
+            onFailCallback('bbb.video.publish.hint.openingCamera');
 
             _cameraAccessDenied = false;
 

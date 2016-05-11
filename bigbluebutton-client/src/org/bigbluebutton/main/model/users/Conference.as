@@ -20,7 +20,8 @@ package org.bigbluebutton.main.model.users {
 	import mx.collections.ArrayCollection;
 	import mx.collections.Sort;
 	
-	import org.bigbluebutton.common.LogUtil;
+	import org.as3commons.logging.api.ILogger;
+	import org.as3commons.logging.api.getClassLogger;
 	import org.bigbluebutton.common.Role;
 	import org.bigbluebutton.core.BBB;
 	import org.bigbluebutton.core.model.Config;
@@ -28,6 +29,7 @@ package org.bigbluebutton.main.model.users {
 	import org.bigbluebutton.core.vo.LockSettingsVO;
 	
 	public class Conference {		
+		public var userEjectedFromMeeting:Boolean = false;
     public var meetingName:String;
     public var externalMeetingID:String;
     public var internalMeetingID:String;
@@ -37,7 +39,7 @@ package org.bigbluebutton.main.model.users {
 	  public var dialNumber:String;
 	  [Bindable] public var record:Boolean;
     
-    private static const LOG:String = "main.model.users::Conference - ";
+	  private static const LOGGER:ILogger = getClassLogger(Conference);
     
 	  private var lockSettings:LockSettingsVO;
 	
@@ -65,27 +67,27 @@ package org.bigbluebutton.main.model.users {
 			else if (b.presenter)
 				return 1;*/
 			if (a.role == Role.MODERATOR && b.role == Role.MODERATOR) {
-				if (a.raiseHand && b.raiseHand) {
-					if (a.raiseHandTime < b.raiseHandTime) 
+				if (a.hasEmojiStatus && b.hasEmojiStatus) {
+					if (a.emojiStatusTime < b.emojiStatusTime) 
 						return -1;
 					else
 						return 1;
-				} else if (a.raiseHand)
+				} else if (a.hasEmojiStatus)
 					return -1;
-				else if (b.raiseHand)
+				else if (b.hasEmojiStatus)
 					return 1;
 			} else if (a.role == Role.MODERATOR)
 				return -1;
 			else if (b.role == Role.MODERATOR)
 				return 1;
-			else if (a.raiseHand && b.raiseHand) {
-				if (a.raiseHandTime < b.raiseHandTime) 
+			else if (a.hasEmojiStatus && b.hasEmojiStatus) {
+				if (a.emojiStatusTime < b.emojiStatusTime) 
 					return -1;
 				else
 					return 1;
-			} else if (a.raiseHand)
+			} else if (a.hasEmojiStatus)
 				return -1;
-			else if (b.raiseHand)
+			else if (b.hasEmojiStatus)
 				return 1;
 			else if (!a.phoneUser && !b.phoneUser) {
 				
@@ -112,16 +114,15 @@ package org.bigbluebutton.main.model.users {
 		}
 
 		public function addUser(newuser:BBBUser):void {
-			trace("Adding new user [" + newuser.userID + "]");
-			if (! hasUser(newuser.userID)) {
-				trace("Am I this new user [" + newuser.userID + ", " + me.userID + "]");
-				if (newuser.userID == me.userID) {
-					newuser.me = true;
-				}						
-				
-				users.addItem(newuser);
-				users.refresh();
-			}					
+			if (hasUser(newuser.userID)) {
+				removeUser(newuser.userID);
+			}
+			if (newuser.userID == me.userID) {
+				newuser.me = true;
+			}
+			
+			users.addItem(newuser);
+			users.refresh();
 		}
 		
 		public function setCamPublishing(publishing:Boolean):void {
@@ -216,7 +217,6 @@ package org.bigbluebutton.main.model.users {
 		public function isUserPresenter(userID:String):Boolean {
 			var user:Object = getUserIndex(userID);
 			if (user == null) {
-				LogUtil.warn("User not found with id=" + userID);
 				return false;
 			}
 			var a:BBBUser = user.participant as BBBUser;
@@ -226,7 +226,6 @@ package org.bigbluebutton.main.model.users {
 		public function removeUser(userID:String):void {
 			var p:Object = getUserIndex(userID);
 			if (p != null) {
-				trace("removing user[" + p.participant.name + "," + p.participant.userID + "]");				
 				users.removeItemAt(p.index);
 				//sort();
 				users.refresh();
@@ -268,12 +267,12 @@ package org.bigbluebutton.main.model.users {
 		}
 		
         [Bindable]
-        public function get isMyHandRaised():Boolean {
-            return me.raiseHand;
+        public function get myEmojiStatus():String {
+            return me.emojiStatus;
         }
         
-        public function set isMyHandRaised(raiseHand:Boolean):void {
-            me.raiseHand = raiseHand;
+        public function set myEmojiStatus(emoji:String):void {
+            me.emojiStatus = emoji;
         }
         
 		public function amIThisUser(userID:String):Boolean {
@@ -332,6 +331,14 @@ package org.bigbluebutton.main.model.users {
 			return me.userLocked;
 		}
 		
+		public function setUserEjectedFromMeeting():void {
+			userEjectedFromMeeting = true;
+		}
+		
+		public function getUserEjectedFromMeeting():Boolean {
+			return userEjectedFromMeeting;
+		}
+		
     public function getMyExternalUserID():String {
       return externalUserID;
     }
@@ -373,13 +380,20 @@ package org.bigbluebutton.main.model.users {
 		}
 		
 		public function removeAllParticipants():void {
-			users.removeAll();
+			//users.removeAll();
+			//users.refresh();
+			
+			for (var i:int = 0; i < users.length; i++) {
+				users.removeItemAt(i);
+				//sort();
+				users.refresh();
+			}
 		}		
 	
-    public function raiseHand(userId: String, raised: Boolean):void {
+    public function emojiStatus(userId: String, emoji: String):void {
       var aUser:BBBUser = getUser(userId);			
       if (aUser != null) {
-        aUser.userRaiseHand(raised)
+        aUser.userEmojiStatus(emoji)
       }	
       
       users.refresh();      
@@ -493,8 +507,6 @@ package org.bigbluebutton.main.model.users {
 				lockOnJoinConfigurable = false; //If not set, default to false
 			}
 			
-			trace(LOG + " init lock settings from config");
-      
 			lockSettings = new LockSettingsVO(disableCam, disableMic, disablePrivateChat, disablePublicChat, lockedLayout, lockOnJoin, lockOnJoinConfigurable);
 			
 			setLockSettings(lockSettings);
@@ -521,6 +533,7 @@ package org.bigbluebutton.main.model.users {
 		public function setLockSettings(lockSettings:LockSettingsVO):void {
 			this.lockSettings = lockSettings;
 			applyLockSettings();
+			users.refresh(); // we need to refresh after updating the lock settings to trigger the user item renderers to redraw
 		}
 		
 		public function applyLockSettings():void {

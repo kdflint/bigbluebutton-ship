@@ -16,6 +16,7 @@
             showLogoutWindow="true" showLayoutTools="true" confirmLogout="true"
             showRecordingNotification="true"/>
     <meeting muteOnStart="false" />
+    <logging enabled="true" target="trace" level="info" format="{dateUTC} {time} :: {name} :: [{logLevel}] {message}" uri="http://HOST"/>
     <lock disableCamForLockedUsers="false" disableMicForLockedUsers="false" disablePrivateChatForLockedUsers="false" 
           disablePublicChatForLockedUsers="false" lockLayoutForLockedUsers="false" lockOnJoin="true" lockOnJoinConfigurable="false"/>
             
@@ -29,12 +30,13 @@
 			position="top-right"
 			baseTabIndex="701"
 			colorPickerIsVisible="false"
+			maxMessageLength="1024"
 		/>
 
 		<module name="UsersModule" url="http://HOST/client/UsersModule.swf?v=VERSION" 
 			uri="rtmp://HOST/bigbluebutton" 
 			allowKickUser="true"
-			enableRaiseHand="true"
+			enableEmojiStatus="true"
 			enableSettingsButton="true"
 			baseTabIndex="301"
 		/>
@@ -68,6 +70,7 @@
 		<module name="VideoconfModule" url="http://HOST/client/VideoconfModule.swf?v=VERSION" 
 			uri="rtmp://HOST/video"
 			dependson = "UsersModule"
+			baseTabIndex="401"
 			presenterShareOnly = "false"
 			controlsForPresenter = "false"
 			autoStart = "false"
@@ -96,14 +99,12 @@
 			whiteboardAccess="presenter"
 			keepToolbarVisible="false"
 		/>
-<!--
-
-    <module name="PollingModule" url="http://HOST/client/PollingModule.swf?v=VERSION" 
-      uri="rtmp://HOST/bigbluebutton" 
-      dependsOn="PresentModule"
-    />
-    		
--->
+		
+		<module name="PollingModule" url="http://HOST/client/PollingModule.swf?v=VERSION" 
+			uri="rtmp://HOST/bigbluebutton" 
+			dependsOn="PresentModule"
+		/>
+		
 		<module name="PresentModule" url="http://HOST/client/PresentModule.swf?v=VERSION" 
 			uri="rtmp://HOST/bigbluebutton" 
 			host="http://HOST" 
@@ -114,22 +115,6 @@
 			baseTabIndex="501"
 			maxFileSize="30"
 		/>
-
-<!--
-		<module name="VideodockModule" url="http://HOST/client/VideodockModule.swf?v=VERSION"
-			uri="rtmp://HOST/bigbluebutton" 
-			dependsOn="VideoconfModule, UsersModule"
-			autoDock="true"
-			showControls="true"
-			maximizeWindow="false"
-			position="bottom-right"
-			width="172"
-			height="179"
-			layout="smart"
-			oneAlwaysBigger="false"
-			baseTabIndex="401"
-		/>
--->
 
 		<module name="LayoutModule" url="http://HOST/client/LayoutModule.swf?v=VERSION"
 			uri="rtmp://HOST/bigbluebutton"

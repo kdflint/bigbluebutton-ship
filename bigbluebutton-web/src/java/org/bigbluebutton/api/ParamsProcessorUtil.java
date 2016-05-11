@@ -27,12 +27,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.commons.lang.StringUtils;
@@ -43,69 +43,70 @@ import org.apache.commons.httpclient.*;
 import org.apache.commons.httpclient.methods.*;
 
 public class ParamsProcessorUtil {
-	private static Logger log = LoggerFactory.getLogger(ParamsProcessorUtil.class);
-	
-	private final String URLDECODER_SEPARATOR=",";
-	
-	private String apiVersion;
-	private boolean serviceEnabled = false;
-	private String securitySalt;
-	private int defaultMaxUsers = 20;
-	private String defaultWelcomeMessage;
-	private String defaultWelcomeMessageFooter;
-	private String defaultDialAccessNumber;
-	private String testVoiceBridge;
-	private String testConferenceMock;
-	private String defaultLogoutUrl;
-	private String defaultServerUrl;
-	private int defaultNumDigitsForTelVoice;
-	private String defaultClientUrl;
-	private String defaultAvatarURL;
-	private String defaultConfigURL;
-	private int defaultMeetingDuration;
-	private boolean disableRecordingDefault;
-	private boolean autoStartRecording;
-	private boolean allowStartStopRecording;
-	
-	private String defaultConfigXML = null;
-	
-	private String substituteKeywords(String message, String dialNumber, String telVoice, String meetingName) {
-	    String welcomeMessage = message;
-	    
-	    String DIAL_NUM = "%%DIALNUM%%";
-	    String CONF_NUM = "%%CONFNUM%%";
-	    String CONF_NAME = "%%CONFNAME%%"; 
-	    ArrayList<String> keywordList = new ArrayList<String>();
-	    keywordList.add(DIAL_NUM);keywordList.add(CONF_NUM);keywordList.add(CONF_NAME);
+    private static Logger log = LoggerFactory.getLogger(ParamsProcessorUtil.class);
 
-	    Iterator<String> itr = keywordList.iterator();
-	    while(itr.hasNext()) {
-	    	String keyword = (String) itr.next();
-	    	if (keyword.equals(DIAL_NUM)) {
-	          welcomeMessage = welcomeMessage.replaceAll(DIAL_NUM, dialNumber);
-	    	} else if (keyword.equals(CONF_NUM)) {
-	          welcomeMessage = welcomeMessage.replaceAll(CONF_NUM, telVoice);
-	    	} else if (keyword.equals(CONF_NAME)) {
-	          welcomeMessage = welcomeMessage.replaceAll(CONF_NAME, meetingName);
-	    	}     
-	    }	
-	    return  welcomeMessage;		
-	}
+    private final String URLDECODER_SEPARATOR=",";
+    private final String FILTERDECODER_SEPARATOR_ELEMENTS=":";
+    private final String FILTERDECODER_SEPARATOR_OPERATORS="\\|";
 
-	
-	public void processRequiredCreateParams(Map<String, String> params, ApiErrors errors) {
-	    // Do we have a checksum? If not, complain.
-        if (StringUtils.isEmpty(params.get("checksum"))) {
-          errors.missingParamError("checksum");
+    private String apiVersion;
+    private boolean serviceEnabled = false;
+    private String securitySalt;
+    private int defaultMaxUsers = 20;
+    private String defaultWelcomeMessage;
+    private String defaultWelcomeMessageFooter;
+    private String defaultDialAccessNumber;
+    private String testVoiceBridge;
+    private String testConferenceMock;
+    private String defaultLogoutUrl;
+    private String defaultServerUrl;
+    private int defaultNumDigitsForTelVoice;
+    private String defaultClientUrl;
+    private String defaultAvatarURL;
+    private String defaultConfigURL;
+    private int defaultMeetingDuration;
+    private boolean disableRecordingDefault;
+    private boolean autoStartRecording;
+    private boolean allowStartStopRecording;
+
+    private String defaultConfigXML = null;
+
+    private String substituteKeywords(String message, String dialNumber, String telVoice, String meetingName) {
+        String welcomeMessage = message;
+
+        String DIAL_NUM = "%%DIALNUM%%";
+        String CONF_NUM = "%%CONFNUM%%";
+        String CONF_NAME = "%%CONFNAME%%";
+        ArrayList<String> keywordList = new ArrayList<String>();
+        keywordList.add(DIAL_NUM);keywordList.add(CONF_NUM);keywordList.add(CONF_NAME);
+
+        Iterator<String> itr = keywordList.iterator();
+        while(itr.hasNext()) {
+            String keyword = (String) itr.next();
+            if (keyword.equals(DIAL_NUM)) {
+                welcomeMessage = welcomeMessage.replaceAll(DIAL_NUM, dialNumber);
+            } else if (keyword.equals(CONF_NUM)) {
+                welcomeMessage = welcomeMessage.replaceAll(CONF_NUM, telVoice);
+            } else if (keyword.equals(CONF_NAME)) {
+                welcomeMessage = welcomeMessage.replaceAll(CONF_NAME, meetingName);
+            }
         }
-        
+        return  welcomeMessage;
+    }
+
+    public void processRequiredCreateParams(Map<String, String> params, ApiErrors errors) {
+        // Do we have a checksum? If not, complain.
+        if (StringUtils.isEmpty(params.get("checksum"))) {
+            errors.missingParamError("checksum");
+        }
+
         // Do we have a meeting id? If not, complain.
         if(!StringUtils.isEmpty(params.get("meetingID"))) {
-          if (StringUtils.isEmpty(StringUtils.strip(params.get("meetingID")))) {
-          errors.missingParamError("meetingID");
-       	  }
+            if (StringUtils.isEmpty(StringUtils.strip(params.get("meetingID")))) {
+                errors.missingParamError("meetingID");
+            }
         } else {
-          errors.missingParamError("meetingID");
+            errors.missingParamError("meetingID");
         }
     }
 
@@ -186,8 +187,7 @@ public class ParamsProcessorUtil {
 	
 	public Map<String, Object> processUpdateCreateParams(Map<String, String> params) {
 		Map<String, Object> newParams = new HashMap<String, Object>();
-		
-	    
+		    
 	    // Do we have a meeting name? If not, complain.
 	    String meetingName = params.get("name");
 	    if (! StringUtils.isEmpty(meetingName) ) {
@@ -530,19 +530,15 @@ public class ParamsProcessorUtil {
 		}
         
 		String cs = DigestUtils.shaHex(meetingID + configXML + securitySalt);
-		log.debug("our checksum: [{}], client: [{}]", cs, checksum);
-		System.out.println("our checksum: [" + cs + "] client: [" + checksum + "]");
+
 		if (cs == null || cs.equals(checksum) == false) {
-			log.info("checksumError: request did not pass the checksum security check");
+			log.info("checksumError: configXML checksum. our: [{}], client: [{}]", cs, checksum);
 			return false;
 		}
-		log.debug("checksum ok: request passed the checksum security check");
 		return true;
 	}
 	
 	public boolean isChecksumSame(String apiCall, String checksum, String queryString) {
-		log.debug("checksum: [{}] ; query string: [{}]", checksum, queryString);
-
 		if (StringUtils.isEmpty(securitySalt)) {
 			log.warn("Security is disabled in this service. Make sure this is intentional.");
 			return true;
@@ -558,14 +554,14 @@ public class ParamsProcessorUtil {
 		    queryString = queryString.replace("checksum=" + checksum, "");
 		}
 
-		log.debug("query string after checksum removed: [{}]", queryString);
 		String cs = DigestUtils.shaHex(apiCall + queryString + securitySalt);
-		log.debug("our checksum: [{}], client: [{}]", cs, checksum);
+
 		if (cs == null || cs.equals(checksum) == false) {
-			log.info("checksumError: request did not pass the checksum security check");
+			log.info("query string after checksum removed: [{}]", queryString);
+			log.info("checksumError: query string checksum failed. our: [{}], client: [{}]", cs, checksum);
 			return false;
 		}
-		log.debug("checksum ok: request passed the checksum security check");
+
 		return true; 
 	}
 	
@@ -617,25 +613,15 @@ public class ParamsProcessorUtil {
 		}
 		csbuf.append(securitySalt);
 
-		String baseString = csbuf.toString();
-
-		System.out.println( "POST basestring = [" + baseString + "]");
-		
-		log.debug("POST basestring = [" + baseString + "]");
-		
+		String baseString = csbuf.toString();				
 		String cs = DigestUtils.shaHex(baseString);
 		
- 		System.out.println("our checksum: [" + cs + "], client: [" + checksum + "]");
- 		
-		log.debug("our checksum: [{}], client: [{}]", cs, checksum);
-
 		if (cs == null || cs.equals(checksum) == false) {
-			System.out.println("our checksum: [" + cs + "], client: [" + checksum + "]");
-			log.info("checksumError: request did not pass the checksum security check");
+			log.info("POST basestring = [" + baseString + "]");
+			log.info("checksumError: failed checksum. our checksum: [{}], client: [{}]", cs, checksum);
 			return false;
 		}
-		log.debug("checksum ok: request passed the checksum security check");
-		
+
 		return true;
 	}
 
@@ -718,8 +704,8 @@ public class ParamsProcessorUtil {
 	public void setdefaultAvatarURL(String url) {
 		this.defaultAvatarURL = url;
 	}
-	
-	public ArrayList<String> decodeIds(String encodeid){
+
+	public ArrayList<String> decodeIds(String encodeid) {
 		ArrayList<String> ids=new ArrayList<String>();
 		try {
 			ids.addAll(Arrays.asList(URLDecoder.decode(encodeid,"UTF-8").split(URLDECODER_SEPARATOR)));
@@ -729,7 +715,7 @@ public class ParamsProcessorUtil {
 		
 		return ids;
 	}
-	
+
 	public ArrayList<String> convertToInternalMeetingId(ArrayList<String> extMeetingIds) {
 		ArrayList<String> internalMeetingIds=new ArrayList<String>();
 		for(String extid : extMeetingIds){
@@ -738,9 +724,9 @@ public class ParamsProcessorUtil {
 		return internalMeetingIds;
 	}
 	
-	public Map<String,String> getUserCustomData(Map<String,String> params){
+	public Map<String,String> getUserCustomData(Map<String,String> params) {
 		Map<String,String> resp = new HashMap<String, String>();
-		
+
 		for (String key: params.keySet()) {
 	    	if (key.contains("userdata")&&key.indexOf("userdata")==0){
 	    		String[] userdata = key.split("-");
@@ -750,7 +736,28 @@ public class ParamsProcessorUtil {
 			    }
 			}   
 	    }
-		
+
 		return resp;
 	}
+
+	public Map<String, Map<String, Object>> decodeFilters(String encodedFilters) {
+        Map<String, Map<String, Object>> filters = new LinkedHashMap<String, Map<String, Object>>();
+
+        try {
+            String[] sFilters = encodedFilters.split(URLDECODER_SEPARATOR);
+            for( String sFilter: sFilters) {
+                String[] filterElements = sFilter.split(FILTERDECODER_SEPARATOR_ELEMENTS, 3);
+                Map<String, Object> filter = new LinkedHashMap<String, Object>();
+                filter.put("op", filterElements[1]);
+                String[] fValues = filterElements[2].split(FILTERDECODER_SEPARATOR_OPERATORS);
+                filter.put("values", fValues );
+                filters.put(filterElements[0], filter);
+            }
+        } catch (Exception e) {
+            log.error("Couldn't decode the filters");
+        }
+
+        return filters;
+    }
+
 }

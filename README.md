@@ -12,6 +12,8 @@ Adds to BBB deployment
 
 1. our custom default.pdf - see BBB documentation for path
 2. speed test images - see code for path
+3. Also, we have customizations to bbb-api.php
+
 
 BigBlueButton
 =============

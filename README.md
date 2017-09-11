@@ -8,6 +8,13 @@ We import this library into our codebase by
 2. fork of kdflint/bigbluebutton-ship to NorthBridge/bigbluebutton-community
 3. symbolic link from bbb-api-php folder to nexus codebase
 
+Adds to BBB deployment
+
+1. our custom default.pdf, copied to `/var/www/bigbluebutton-default/default.pdf`
+2. speed test images - see code for path
+3. Also, we have customizations to bbb-api.php
+
+
 BigBlueButton
 =============
 BigBlueButton is an open source web conferencing system.  

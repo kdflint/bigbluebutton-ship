@@ -127,6 +127,21 @@
     }
 
     /**
+     * Query user's sessionToken.
+     *
+     * Params:
+     *    callback - function if you want a callback as response.
+     */
+    BBB.getSessionToken = function(callback) {
+      var swfObj = getSwfObj();
+      if (swfObj) {
+        if (typeof callback === 'function') {
+          callback(swfObj.getSessionToken());
+        }
+      }
+    }
+    
+    /**
      * Eject a user.
      *
      * Params:
@@ -420,6 +435,10 @@
      *
      */
      
+    BBB.webRTCCallSucceeded = function() {
+      // do nothing on this callback
+    }
+
     BBB.webRTCCallStarted = function(inEchoTest) {
       var swfObj = getSwfObj();
       if (swfObj) {
@@ -489,14 +508,15 @@
         swfObj.webRTCMediaFail();
       }
     }
-    
-    BBB.javaAppletLaunched = function() {
+
+    BBB.webRTCMonitorUpdate = function(result) {
       var swfObj = getSwfObj();
       if (swfObj) {
-        swfObj.javaAppletLaunched();
+        swfObj.webRTCMonitorUpdate(result);
       }
     }
-    
+
+
     // Third-party JS apps should use this to query if the BBB SWF file is ready to handle calls.
     BBB.isSwfClientReady = function() {
       return swfReady;
@@ -649,4 +669,3 @@
 
     window.BBB = BBB;
 })(this);
-

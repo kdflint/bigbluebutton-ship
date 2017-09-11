@@ -1,11 +1,11 @@
-@import "imports/ui/stylesheets/variables/_all";
+@import "../../stylesheets/variables/_all";
 
 .container {
   position: relative;
   display: flex;
   flex: 2;
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;
+  order: 1;
 }
 
 %ratio {
@@ -26,27 +26,15 @@
   border: 0;
 }
 
-.contentWrapper {
-  flex-basis: 90%;
-
-  @include mq($large-up) {
-    flex-basis: 75%;
-  }
-}
-
-.contentRatio {
-  @extend %ratio;
-}
-
-.content {
-  @extend %ratio-item;
-}
-
 .overlayWrapper {
   position: absolute;
   width: 30%;
-  right: 5%;
-  bottom: 5%;
+  right: 2%;
+  bottom: 2%;
+
+  @include mq($large-up) {
+    flex-basis: 15%;
+  }
 }
 
 .overlayRatio {

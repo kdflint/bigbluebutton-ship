@@ -1,11 +1,9 @@
 package org.bigbluebutton.air.chat {
 	
-	import org.bigbluebutton.air.chat.views.chat.ChatViewMediator;
-	import org.bigbluebutton.air.chat.views.chat.IChatView;
-	import org.bigbluebutton.air.chat.views.chatrooms.ChatRoomsViewMediator;
-	import org.bigbluebutton.air.chat.views.chatrooms.IChatRoomsView;
-	import org.bigbluebutton.air.chat.views.selectparticipant.ISelectParticipantView;
-	import org.bigbluebutton.air.chat.views.selectparticipant.SelectParticipantViewMediator;
+	import org.bigbluebutton.air.chat.views.ChatRoomsMediatorAIR;
+	import org.bigbluebutton.air.chat.views.ChatViewMediatorAIR;
+	import org.bigbluebutton.lib.chat.views.ChatRoomsViewBase;
+	import org.bigbluebutton.lib.chat.views.ChatViewBase;
 	
 	import robotlegs.bender.extensions.mediatorMap.api.IMediatorMap;
 	import robotlegs.bender.extensions.signalCommandMap.api.ISignalCommandMap;
@@ -27,9 +25,8 @@ package org.bigbluebutton.air.chat {
 		 * Maps view mediators to views.
 		 */
 		private function mediators():void {
-			mediatorMap.map(IChatView).toMediator(ChatViewMediator);
-			mediatorMap.map(IChatRoomsView).toMediator(ChatRoomsViewMediator);
-			mediatorMap.map(ISelectParticipantView).toMediator(SelectParticipantViewMediator);
+			mediatorMap.map(ChatRoomsViewBase).toMediator(ChatRoomsMediatorAIR);
+			mediatorMap.map(ChatViewBase).toMediator(ChatViewMediatorAIR);
 		}
 	}
 }

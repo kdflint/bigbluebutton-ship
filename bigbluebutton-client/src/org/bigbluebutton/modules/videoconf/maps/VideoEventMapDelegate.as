@@ -25,6 +25,7 @@ package org.bigbluebutton.modules.videoconf.maps
   
   import mx.collections.ArrayCollection;
   import mx.collections.ArrayList;
+  import mx.core.IUIComponent;
   
   import org.as3commons.logging.api.ILogger;
   import org.as3commons.logging.api.getClassLogger;
@@ -33,16 +34,17 @@ package org.bigbluebutton.modules.videoconf.maps
   import org.bigbluebutton.common.events.OpenWindowEvent;
   import org.bigbluebutton.common.events.ToolbarButtonEvent;
   import org.bigbluebutton.core.BBB;
+  import org.bigbluebutton.core.Options;
   import org.bigbluebutton.core.UsersUtil;
-  import org.bigbluebutton.core.managers.UserManager;
+  import org.bigbluebutton.core.model.LiveMeeting;
   import org.bigbluebutton.core.model.VideoProfile;
+  import org.bigbluebutton.core.model.users.User2x;
   import org.bigbluebutton.core.vo.CameraSettingsVO;
   import org.bigbluebutton.main.events.BBBEvent;
   import org.bigbluebutton.main.events.MadePresenterEvent;
   import org.bigbluebutton.main.events.StoppedViewingWebcamEvent;
   import org.bigbluebutton.main.events.UserJoinedEvent;
   import org.bigbluebutton.main.events.UserLeftEvent;
-  import org.bigbluebutton.main.model.users.BBBUser;
   import org.bigbluebutton.main.model.users.events.BroadcastStartedEvent;
   import org.bigbluebutton.main.model.users.events.BroadcastStoppedEvent;
   import org.bigbluebutton.main.model.users.events.StreamStoppedEvent;
@@ -60,10 +62,10 @@ package org.bigbluebutton.modules.videoconf.maps
 
   public class VideoEventMapDelegate
   {
-	private static const LOGGER:ILogger = getClassLogger(VideoEventMapDelegate);
-	private static var PERMISSION_DENIED_ERROR:String = "PermissionDeniedError";
+    private static const LOGGER:ILogger = getClassLogger(VideoEventMapDelegate);
+    private static var PERMISSION_DENIED_ERROR:String = "PermissionDeniedError";
 
-    private var options:VideoConfOptions = new VideoConfOptions();
+    private var options:VideoConfOptions;
     private var uri:String;
 
     private var button:ToolbarPopupButton = new ToolbarPopupButton();
@@ -71,7 +73,6 @@ package org.bigbluebutton.modules.videoconf.maps
 
     private var _dispatcher:IEventDispatcher;
     private var _ready:Boolean = false;
-    private var _isPublishing:Boolean = false;
     private var _isPreviewWebcamOpen:Boolean = false;
     private var _isWaitingActivation:Boolean = false;
     private var _chromeWebcamPermissionDenied:Boolean = false;
@@ -79,18 +80,18 @@ package org.bigbluebutton.modules.videoconf.maps
     private var _videoDock:VideoDock;
     private var _graphics:GraphicsWrapper = new GraphicsWrapper();
     private var streamList:ArrayList = new ArrayList();
-    private var numberOfWindows:Object = new Object();
 
-	private var _restream:Boolean = false;
-	private var _cameraIndex:int;
-	private var _videoProfile:VideoProfile;
-	
-	private var globalDispatcher:Dispatcher;
-	
+    private var _restream:Boolean = false;
+    private var _myCamSettings:ArrayCollection = null;
+
+    private var globalDispatcher:Dispatcher;
+
     public function VideoEventMapDelegate(dispatcher:IEventDispatcher)
     {
       _dispatcher = dispatcher;
-	  globalDispatcher = new Dispatcher();
+      globalDispatcher = new Dispatcher();
+      _myCamSettings = new ArrayCollection();
+	  options = Options.getOptions(VideoConfOptions) as VideoConfOptions;
     }
 
     private function get me():String {
@@ -109,24 +110,27 @@ package org.bigbluebutton.modules.videoconf.maps
       _videoDock.addChild(_graphics);
     }
 
-    public function viewCamera(userID:String, stream:String, name:String, mock:Boolean = false):void {
+    public function addStaticComponent(component:IUIComponent):void {
+      _graphics.addStaticComponent(component);
+    }
+
+    public function viewCamera(userID:String):void {
       LOGGER.debug("VideoEventMapDelegate:: [{0}] viewCamera. ready = [{1}]", [me, _ready]);
 
       if (!_ready) return;
-      LOGGER.debug("VideoEventMapDelegate:: [{0}] Viewing [{1} stream [{2}]", [me, userID, stream]);
-      if (! UserManager.getInstance().getConference().amIThisUser(userID)) {
+      if (! UsersUtil.isMe(userID)) {
         openViewWindowFor(userID);
       }
     }
 
-	public function handleStreamStoppedEvent(event:StreamStoppedEvent):void {
-		if (UserManager.getInstance().getConference().amIThisUser(event.userId)) {
-			closePublishWindowByStream(event.streamId);
-		} else {
-			closeViewWindowWithStream(event.userId, event.streamId);
-		}
-	}
-	
+    public function handleStreamStoppedEvent(event:StreamStoppedEvent):void {
+      if (UsersUtil.isMe(event.userId)) {
+        closePublishWindowByStream(event.streamId);
+      } else {
+        closeViewWindowWithStream(event.userId, event.streamId);
+      }
+    }
+
     public function handleUserLeftEvent(event:UserLeftEvent):void {
       LOGGER.debug("VideoEventMapDelegate:: [{0}] handleUserLeftEvent. ready = [{1}]", [me, _ready]);
 
@@ -136,7 +140,7 @@ package org.bigbluebutton.modules.videoconf.maps
     }
 
     public function handleUserJoinedEvent(event:UserJoinedEvent):void {
-		LOGGER.debug("VideoEventMapDelegate:: [{0}] handleUserJoinedEvent. ready = [{1}]", [me, _ready]);
+     LOGGER.debug("VideoEventMapDelegate:: [{0}] handleUserJoinedEvent. ready = [{1}]", [me, _ready]);
 
       if (!_ready) return;
 
@@ -147,15 +151,6 @@ package org.bigbluebutton.modules.videoconf.maps
 
     private function displayToolbarButton():void {
       button.isPresenter = true;
-
-      if (options.presenterShareOnly) {
-        if (UsersUtil.amIPresenter()) {
-          button.isPresenter = true;
-        } else {
-          button.isPresenter = false;
-        }
-      }
-
     }
 
     private function addToolbarButton():void{
@@ -165,7 +160,7 @@ package org.bigbluebutton.modules.videoconf.maps
 
         var event:ToolbarButtonEvent = new ToolbarButtonEvent(ToolbarButtonEvent.ADD);
         event.button = button;
-		event.module="Webcam";
+        event.module="Webcam";
         _dispatcher.dispatchEvent(event);
       }
     }
@@ -198,9 +193,10 @@ package org.bigbluebutton.modules.videoconf.maps
 
     private function skipCameraSettingsCheck(camIndex:int = -1):void {
       if (camIndex == -1) {
-        var cam:Camera = changeDefaultCamForMac();
+        var cam:Camera = getDefaultCamera();
         if (cam == null) {
-          cam = Camera.getCamera();
+          LOGGER.debug("VideoEventMapDelegate:: Could not find a default camera");
+          return;
         }
         camIndex = cam.index;
       }
@@ -209,13 +205,23 @@ package org.bigbluebutton.modules.videoconf.maps
       initCameraWithSettings(camIndex, videoProfile);
     }
 
-    private function openWebcamWindows():void {
-		LOGGER.debug("VideoEventMapDelegate:: [{0}] openWebcamWindows. ready = [{1}]", [me, _ready]);
+    private function getDefaultCamera():Camera {
+      var cam:Camera = null;
+      cam = changeDefaultCamForMac();
+      if (cam == null) {
+        cam = Camera.getCamera();
+      }
 
-      var uids:ArrayCollection = UsersUtil.getUserIDs();
+      return cam;
+    }
+
+    private function openWebcamWindows():void {
+      LOGGER.debug("VideoEventMapDelegate:: [{0}] openWebcamWindows. ready = [{1}]", [me, _ready]);
+
+      var uids:Array = UsersUtil.getUserIDs();
 
       for (var i:int = 0; i < uids.length; i++) {
-        var u:String = uids.getItemAt(i) as String;
+        var u:String = uids[i] as String;
         LOGGER.debug("VideoEventMapDelegate:: [{0}] openWebcamWindows:: open window for = [{1}]", [me, u]);
         openWebcamWindowFor(u);
       }
@@ -282,14 +288,15 @@ package org.bigbluebutton.modules.videoconf.maps
     }
 
     private function openViewWindowFor(userID:String):void {
-      if (!proxy.connection.connected) {
-        return;
+      var webUser:User2x = LiveMeeting.inst().users.getUser(userID);
+      if (webUser == null || !proxy.connection.connected) {
+       return;
       }
       
       LOGGER.debug("VideoEventMapDelegate:: [{0}] openViewWindowFor:: Opening VIEW window for [{1}] [{2}]", [me, userID, UsersUtil.getUserName(userID)]);
 
-      var bbbUser:BBBUser = UsersUtil.getUser(userID);
-      if (bbbUser.hasStream) {
+      var hasStream: Boolean = LiveMeeting.inst().webcams.getStreamsForUser(userID).length > 0;
+      if (hasStream) {
         closeAllAvatarWindows(userID);
       }
       _graphics.addVideoFor(userID, proxy.connection);
@@ -297,43 +304,40 @@ package org.bigbluebutton.modules.videoconf.maps
 
     public function connectToVideoApp():void {
       proxy = new VideoProxy(uri);
-	  proxy.reconnectWhenDisconnected(true);
+      proxy.reconnectWhenDisconnected(true);
       proxy.connect();
     }
 
     public function startPublishing(e:StartBroadcastEvent):void{
-	  LOGGER.debug("VideoEventMapDelegate:: [{0}] startPublishing:: Publishing stream to: {1}/{2}", [me, proxy.connection.uri, e.stream]);
+      LOGGER.debug("VideoEventMapDelegate:: [{0}] startPublishing:: Publishing stream to: {1}/{2}", [me, proxy.connection.uri, e.stream]);
       proxy.startPublishing(e);
 
-	  _isWaitingActivation = false;
-      _isPublishing = true;
-      UsersUtil.setIAmPublishing(true);
+      _isWaitingActivation = false;
 
-      var broadcastEvent:BroadcastStartedEvent = new BroadcastStartedEvent();
-      streamList.addItem(e.stream);
-      broadcastEvent.stream = e.stream;
-      broadcastEvent.userid = UsersUtil.getMyUserID();
-      broadcastEvent.isPresenter = UsersUtil.amIPresenter();
-      broadcastEvent.camSettings = UsersUtil.amIPublishing();
+      var arr: ArrayCollection = UsersUtil.myCamSettings();
+      for (var i:int = 0; i < arr.length; i++) {
+        var broadcastEvent:BroadcastStartedEvent = new BroadcastStartedEvent();
+        streamList.addItem(e.stream);
+        broadcastEvent.stream = e.stream;
+        broadcastEvent.userid = UsersUtil.getMyUserID();
+        broadcastEvent.isPresenter = UsersUtil.amIPresenter();
+        broadcastEvent.camSettings = arr.getItemAt(i) as CameraSettingsVO;
 
-      _dispatcher.dispatchEvent(broadcastEvent);
-	  if (proxy.videoOptions.showButton) {
-		  button.publishingStatus(button.START_PUBLISHING);
-	  }
+        _dispatcher.dispatchEvent(broadcastEvent);
+      }
+
+      if (proxy.videoOptions.showButton) {
+       button.callLater(button.publishingStatus, [button.START_PUBLISHING]);
+      }
     }
 
     public function stopPublishing(e:StopBroadcastEvent):void{
       LOGGER.debug("VideoEventMapDelegate:: [{0}] Stop publishing. ready = [{1}]", [me, _ready]);
-      checkLastBroadcasting();
+      UsersUtil.removeCameraSettings(e.camId);
+
       streamList.removeItem(e.stream);
       stopBroadcasting(e.stream);
       button.setCamAsInactive(e.camId);
-    }
-
-    private function checkLastBroadcasting():void {
-      LOGGER.debug("[VideoEventMapDelegate:checkLastBroadcasting]");
-      _isPublishing = streamList.length > 0;
-      UsersUtil.setIAmPublishing(streamList.length > 0);
     }
 
     private function stopBroadcasting(stream:String = ""):void {
@@ -372,18 +376,18 @@ package org.bigbluebutton.modules.videoconf.maps
 
     public function handleClosePublishWindowEvent(event:ClosePublishWindowEvent):void {
       LOGGER.debug("Closing publish window");
-      if (_isPublishing || _chromeWebcamPermissionDenied) {
+      if (_myCamSettings.length > 0 || _chromeWebcamPermissionDenied) {
         stopBroadcasting();
       }
     }
 
     public function handleShareCameraRequestEvent(event:ShareCameraRequestEvent):void {
-		LOGGER.debug("[VideoEventMapDelegate:handleShareCameraRequestEvent]");
-		if (options.skipCamSettingsCheck) {
-			skipCameraSettingsCheck(int(event.defaultCamera));
-		} else {
-			openWebcamPreview(event.publishInClient, event.defaultCamera, event.camerasArray);
-		}
+     LOGGER.debug("[VideoEventMapDelegate:handleShareCameraRequestEvent] {0} {1}", [options.skipCamSettingsCheck, event.toString()]);
+     if (options.skipCamSettingsCheck) {
+       skipCameraSettingsCheck();
+     } else {
+       openWebcamPreview(event.publishInClient, event.defaultCamera, event.camerasArray);
+     }
     }
 
     public function handleStopAllShareCameraRequestEvent(event:StopShareCameraRequestEvent):void {
@@ -396,12 +400,15 @@ package org.bigbluebutton.modules.videoconf.maps
       var userID:String = UsersUtil.getMyUserID();
       var camIndex:int = event.camId;
 
+      // remove the camera from the settings so it does not resume sharing on refresh
+      removeCamera(camIndex);
+
       _graphics.removeVideoByCamIndex(userID, camIndex);
     }
 
-	public function handleCamSettingsClosedEvent(event:BBBEvent):void{
-		_isPreviewWebcamOpen = false;
-	}
+    public function handleCamSettingsClosedEvent(event:BBBEvent):void{
+      _isPreviewWebcamOpen = false;
+    }
 
     private function openWebcamPreview(publishInClient:Boolean, defaultCamera:String, camerasArray:Object):void {
       var openEvent:BBBEvent = new BBBEvent(BBBEvent.OPEN_WEBCAM_PREVIEW);
@@ -410,7 +417,7 @@ package org.bigbluebutton.modules.videoconf.maps
       openEvent.payload.camerasArray = camerasArray;
       openEvent.payload.chromePermissionDenied = _chromeWebcamPermissionDenied;
 
-	  _isPreviewWebcamOpen = true;
+      _isPreviewWebcamOpen = true;
 
       _dispatcher.dispatchEvent(openEvent);
     }
@@ -418,21 +425,20 @@ package org.bigbluebutton.modules.videoconf.maps
     public function stopModule():void {
       LOGGER.debug("VideoEventMapDelegate:: stopping video module");
       closeAllWindows();
-	  proxy.reconnectWhenDisconnected(false);
+      var event:CloseWindowEvent = new CloseWindowEvent(CloseWindowEvent.CLOSE_WINDOW_EVENT);
+      event.window = _videoDock;
+      globalDispatcher.dispatchEvent(event);
+      proxy.reconnectWhenDisconnected(false);
       proxy.disconnect();
     }
 
-    public function closeAllWindows():void{
+    private function closeAllWindows():void {
       LOGGER.debug("VideoEventMapDelegate:: closing all windows");
-      if (_isPublishing) {
+      if (_myCamSettings.length > 0) {
         stopBroadcasting();
       }
 
       _graphics.shutdown();
-	  
-	  var event:CloseWindowEvent = new CloseWindowEvent(CloseWindowEvent.CLOSE_WINDOW_EVENT);
-	  event.window = _videoDock;
-	  globalDispatcher.dispatchEvent(event);
     }
 
     public function switchToPresenter(event:MadePresenterEvent):void{
@@ -449,9 +455,6 @@ package org.bigbluebutton.modules.videoconf.maps
       if (options.showButton){
         LOGGER.debug("****************** Switching to viewer. Show video button?=[{0}]", [UsersUtil.amIPresenter()]);
         displayToolbarButton();
-        if (_isPublishing && options.presenterShareOnly) {
-          stopBroadcasting();
-        }
       }
     }
 
@@ -468,33 +471,58 @@ package org.bigbluebutton.modules.videoconf.maps
       openWebcamWindows();
     }
 
-    public function handleCameraSetting(event:BBBEvent):void {
-	  _cameraIndex = event.payload.cameraIndex;
-      _videoProfile = event.payload.videoProfile;
-	  _restream = event.payload.restream;
-      LOGGER.debug("VideoEventMapDelegate::handleCameraSettings [{0},{1}]", [_cameraIndex, _videoProfile.id]);
-      initCameraWithSettings(_cameraIndex, _videoProfile);
+    private function addCamera(camIndex:int, videoProfile:VideoProfile):void {
+      var camSettings:CameraSettingsVO = new CameraSettingsVO();
+      camSettings.camIndex = camIndex;
+      camSettings.videoProfile = videoProfile;
+      camSettings.isPublishing = true;
+
+      if(!_myCamSettings.contains(camSettings)) {
+          _myCamSettings.addItem(camSettings);
+      }
     }
 
-	public function handleEraseCameraSetting(event:BBBEvent):void {
-		_cameraIndex = -1;
-		_videoProfile = null;
-		_restream = event.payload.restream;
-	}
-	
-	private function handleRestream():void {
-		if(_restream){
-			LOGGER.debug("VideoEventMapDelegate::handleRestream [{0},{1}]", [_cameraIndex, _videoProfile.id]);
-			initCameraWithSettings(_cameraIndex, _videoProfile);
-		}
-	}
-	
+    private function removeCamera(camIndex:int):void {
+      for(var i:int = 0; i < _myCamSettings.length; i++) {
+        if (_myCamSettings.getItemAt(i) != null && _myCamSettings.getItemAt(i).camIndex == camIndex) {
+          _myCamSettings.removeItemAt(i);
+        }
+      }
+    }
+
+    public function handleCameraSetting(event:BBBEvent):void {
+      var camIndex:int = event.payload.cameraIndex;
+      var videoProfile:VideoProfile = event.payload.videoProfile;
+
+      addCamera(camIndex, videoProfile);
+
+      _restream = event.payload.restream;
+      LOGGER.debug("VideoEventMapDelegate::handleCameraSettings [{0},{1}] _restream={2}", [camIndex, videoProfile.id, _restream]);
+      initCameraWithSettings(camIndex, videoProfile);
+    }
+
+    public function handleEraseCameraSetting(event:BBBEvent):void {
+     _myCamSettings = new ArrayCollection();
+
+     LOGGER.debug("VideoEventMapDelegate::handleEraseCameraSetting [{0}]", [event.toString()]);
+     _restream = event.payload.restream;
+    }
+
+    private function handleRestream():void {
+     if(_restream){
+      for each(var aCamSettings:CameraSettingsVO in _myCamSettings) {
+       LOGGER.debug("VideoEventMapDelegate::handleRestream [{0},{1}]", [aCamSettings.camIndex, aCamSettings.videoProfile.id]);
+       initCameraWithSettings(aCamSettings.camIndex, aCamSettings.videoProfile);
+      }
+     }
+    }
+
     private function initCameraWithSettings(camIndex:int, videoProfile:VideoProfile):void {
       var camSettings:CameraSettingsVO = new CameraSettingsVO();
       camSettings.camIndex = camIndex;
       camSettings.videoProfile = videoProfile;
-
-      UsersUtil.setCameraSettings(camSettings);
+      camSettings.isPublishing = true;
+      UsersUtil.addCameraSettings(camSettings);
 
       _isWaitingActivation = true;
       button.setCamAsActive(camIndex);
@@ -514,6 +542,10 @@ package org.bigbluebutton.modules.videoconf.maps
         LOGGER.debug("VideoEventMapDelegate::handleStoppedViewingWebcamEvent [{0}] Opening avatar for user [{1}]", [me, event.webcamUserID]);
         openAvatarWindowFor(event.webcamUserID);
       }
+    }
+
+    public function handleReconnectDisconnectedEvent(event:BBBEvent):void {
+      if (event.payload.type == "BIGBLUEBUTTON_CONNECTION") closeAllWindows();
     }
   }
 }

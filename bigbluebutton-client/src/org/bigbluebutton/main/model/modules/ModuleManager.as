@@ -28,10 +28,10 @@ package org.bigbluebutton.main.model.modules
 	import org.as3commons.logging.api.ILogger;
 	import org.as3commons.logging.api.getClassLogger;
 	import org.bigbluebutton.common.IBigBlueButtonModule;
-	import org.bigbluebutton.common.Role;
+	import org.bigbluebutton.core.BBB;
+	import org.bigbluebutton.core.Options;
 	import org.bigbluebutton.main.events.AppVersionEvent;
-	import org.bigbluebutton.main.model.ConferenceParameters;
-	import org.bigbluebutton.main.model.ConfigParameters;
+	import org.bigbluebutton.main.model.options.PortTestOptions;
 	
 	public class ModuleManager
 	{
@@ -45,22 +45,19 @@ package org.bigbluebutton.main.model.modules
 		private var sorted:ArrayCollection; //The array of modules sorted by dependencies, with least dependent first
 		
 		private var _applicationDomain:ApplicationDomain;
-		private var configParameters:ConfigParameters;
-		private var conferenceParameters:ConferenceParameters;
-		
-		private var _protocol:String;
 		
 		private var modulesDispatcher:ModulesDispatcher;
 		
+		private var portTestOptions : PortTestOptions;
+		
 		public function ModuleManager(modulesDispatcher: ModulesDispatcher)
 		{
-      this.modulesDispatcher = modulesDispatcher;
+            this.modulesDispatcher = modulesDispatcher;
 			_applicationDomain = new ApplicationDomain(ApplicationDomain.currentDomain);
-			configParameters = new ConfigParameters(handleComplete);
 		}
 				
-		private function handleComplete():void{	
-			var modules:Dictionary = configParameters.getModules();	
+		public function configLoaded():void{	
+			var modules:Dictionary = BBB.getConfigManager().getModules();	
 			for (var key:Object in modules) {
 				var m:ModuleDescriptor = modules[key] as ModuleDescriptor;
 				m.setApplicationDomain(_applicationDomain);
@@ -69,38 +66,47 @@ package org.bigbluebutton.main.model.modules
 			var resolver:DependancyResolver = new DependancyResolver();
 			sorted = resolver.buildDependencyTree(modules);
 			
-			modulesDispatcher.sendConfigParameters(configParameters);
-      
-      modulesDispatcher.sendPortTestEvent();
+			portTestOptions = Options.getOptions(PortTestOptions) as PortTestOptions;
+			
+			modulesDispatcher.sendPortTestEvent();
 		}
 		
-		public function useProtocol(protocol:String):void {
-			_protocol = protocol;			
+		public function loadConfig():void {
+			BBB.getConfigManager();
+			BBB.loadConfig();
+		}
+		
+		public function useProtocol(tunnel:Boolean):void {
+      BBB.initConnectionManager().isTunnelling = tunnel;			
 		}
 		
 		public function get portTestHost():String {
-			return configParameters.portTestHost;
+			return portTestOptions.host;
 		}
 		
 		public function get portTestApplication():String {
-			return configParameters.portTestApplication;
+			return portTestOptions.application;
 		}
 		
 		public function get portTestTimeout():Number {
-			return configParameters.portTestTimeout;
+			return portTestOptions.timeout;
 		}
 		
 		private function getModule(name:String):ModuleDescriptor {
-			return configParameters.getModule(name);	
+			return BBB.getConfigManager().getModuleFor(name);	
 		}
 
 		private function startModule(name:String):void {
 			var m:ModuleDescriptor = getModule(name);
 			if (m != null) {
 				var bbb:IBigBlueButtonModule = m.module as IBigBlueButtonModule;
-				m.loadConfigAttributes(conferenceParameters, _protocol);
-				bbb.start(m.attributes);		
-			}	
+				var protocol:String = "rtmp";
+				if (BBB.initConnectionManager().isTunnelling) {
+					protocol = "rtmpt";
+				}
+				m.loadConfigAttributes(protocol);
+				bbb.start(m.attributes);
+			}
 		}
 
 		private function stopModule(name:String):void {
@@ -139,18 +145,16 @@ package org.bigbluebutton.main.model.modules
 			
 			if (allModulesLoaded()) {
 				sendAppAndLocaleVersions();
-//				startAllModules();
-//				modulesDispatcher.sendAllModulesLoadedEvent();	
 			}
 		}
 		
 		private function sendAppAndLocaleVersions():void {
 			var dispatcher:Dispatcher = new Dispatcher();
 			var versionEvent:AppVersionEvent = new AppVersionEvent();
-			versionEvent.appVersion = configParameters.version;	
-			versionEvent.localeVersion = configParameters.localeVersion; 
+			versionEvent.appVersion = BBB.getConfigManager().config.version;	
+			versionEvent.localeVersion = BBB.getConfigManager().config.locale.version; 
 			versionEvent.configLocaleVersion = true;
-			versionEvent.suppressLocaleWarning = configParameters.suppressLocaleWarning;
+			versionEvent.suppressLocaleWarning = BBB.getConfigManager().config.locale.suppressLocaleWarning;
 			dispatcher.dispatchEvent(versionEvent);			
 		}
 		
@@ -159,14 +163,11 @@ package org.bigbluebutton.main.model.modules
 		}
 		
 		public function startUserServices():void {
-			configParameters.application = configParameters.application.replace(/rtmp:/gi, _protocol + ":");
-			modulesDispatcher.sendStartUserServicesEvent(configParameters.application, configParameters.host, _protocol.toUpperCase() == "RTMPT");
+			modulesDispatcher.sendStartUserServicesEvent();
 		}
 		
-		public function loadAllModules(parameters:ConferenceParameters):void{
-			modulesDispatcher.sendModuleLoadingStartedEvent(configParameters.getModulesXML());
-			conferenceParameters = parameters;
-			Role.setRole(parameters.role);
+		public function loadAllModules():void{
+			modulesDispatcher.sendModuleLoadingStartedEvent();
 			
 			for (var i:int = 0; i<sorted.length; i++){
 				var m:ModuleDescriptor = sorted.getItemAt(i) as ModuleDescriptor;

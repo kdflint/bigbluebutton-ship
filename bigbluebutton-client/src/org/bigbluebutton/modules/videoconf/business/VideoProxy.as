@@ -33,6 +33,7 @@ package org.bigbluebutton.modules.videoconf.business
 	import org.as3commons.logging.api.ILogger;
 	import org.as3commons.logging.api.getClassLogger;
 	import org.bigbluebutton.core.BBB;
+	import org.bigbluebutton.core.Options;
 	import org.bigbluebutton.core.UsersUtil;
 	import org.bigbluebutton.core.managers.ReconnectionManager;
 	import org.bigbluebutton.main.api.JSLog;
@@ -59,7 +60,7 @@ package org.bigbluebutton.modules.videoconf.business
 		private var numNetworkChangeCount:int = 0;
 		
 		private function parseOptions():void {
-			videoOptions = new VideoConfOptions();
+			videoOptions = Options.getOptions(VideoConfOptions) as VideoConfOptions;
 			videoOptions.parseOptions();	
 		}
 		
@@ -85,15 +86,15 @@ package org.bigbluebutton.modules.videoconf.business
 	    }
 	    
 		private function onAsyncError(event:AsyncErrorEvent):void{
-			var logData:Object = new Object();
-			logData.user = UsersUtil.getUserData();
+			var logData:Object = UsersUtil.initLogData();
+			logData.tags = ["webcam"];
 			logData.message = "VIDEO WEBCAM onAsyncError"; 
 			LOGGER.error(JSON.stringify(logData));
 		}
 		
 		private function onIOError(event:NetStatusEvent):void{
-			var logData:Object = new Object();
-			logData.user = UsersUtil.getUserData();
+			var logData:Object = UsersUtil.initLogData();
+			logData.tags = ["webcam"];
 			logData.message = "VIDEO WEBCAM onIOError"; 
 			LOGGER.error(JSON.stringify(logData));
 		}
@@ -112,8 +113,8 @@ package org.bigbluebutton.modules.videoconf.business
 		private function onNetStatus(event:NetStatusEvent):void{
 
 			LOGGER.debug("[{0}] for [{1}]", [event.info.code, _url]);
-			var logData:Object = new Object();
-			logData.user = UsersUtil.getUserData();
+			var logData:Object = UsersUtil.initLogData();
+			logData.tags = ["webcam"];
 			logData.user.eventCode = event.info.code + "[reconnecting=" + reconnecting + ",reconnect=" + reconnect + "]";
 						
 			switch(event.info.code){
@@ -123,7 +124,6 @@ package org.bigbluebutton.modules.videoconf.business
 					break;
 				case "NetStream.Play.Failed":
 					if (reconnect) {
-						JSLog.warn("NetStream.Play.Failed from bbb-video", logData);
 						logData.message = "NetStream.Play.Failed from bbb-video";
 						LOGGER.info(JSON.stringify(logData));
 					}
@@ -131,7 +131,6 @@ package org.bigbluebutton.modules.videoconf.business
 					break;
 				case "NetStream.Play.Stop":
 					if (reconnect) {
-						JSLog.warn("NetStream.Play.Stop from bbb-video", logData);
 						logData.message = "NetStream.Play.Stop from bbb-video";
 						LOGGER.info(JSON.stringify(logData));
 					}
@@ -162,7 +161,6 @@ package org.bigbluebutton.modules.videoconf.business
 					}
 					
 					if (reconnect) {
-						JSLog.warn("NetConnection.Connect.Failed from bbb-video", logData);
 						logData.message = "NetConnection.Connect.Failed from bbb-video";
 						LOGGER.info(JSON.stringify(logData));
 					}

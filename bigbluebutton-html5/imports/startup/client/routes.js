@@ -1,30 +1,37 @@
 import React from 'react';
-import { Router, Route, Redirect, IndexRoute, browserHistory } from 'react-router';
+import { Router, Route, Redirect, IndexRoute, useRouterHistory } from 'react-router';
+import { createHistory } from 'history';
 
-// route components
-import AppContainer from '../../ui/components/app/AppContainer.jsx';
-import UserListContainer from '../../ui/components/user-list/UserListContainer.jsx';
-import ChatContainer from '../../ui/components/chat/ChatContainer.jsx';
+import { joinRouteHandler, logoutRouteHandler, authenticatedRouteHandler } from './auth';
+import Base from './base';
 
-/*
-  TODO: Find out how to set a baseURL or something alike
-  so we dont need to mannualy say `html5client` in every route/link
-*/
+import LoadingScreen from '/imports/ui/components/loading-screen/component';
+import ChatContainer from '/imports/ui/components/chat/container';
+import UserListContainer from '/imports/ui/components/user-list/container';
+
+const browserHistory = useRouterHistory(createHistory)({
+  basename: Meteor.settings.public.app.basename,
+});
+
 export const renderRoutes = () => (
   <Router history={browserHistory}>
-    <Route path="/html5client" component={AppContainer}>
+    <Route path="/logout" onEnter={logoutRouteHandler} />
+    <Route
+      path="/join"
+      component={LoadingScreen} onEnter={joinRouteHandler}
+    />
+    <Route path="/" component={Base} onEnter={authenticatedRouteHandler} >
       <IndexRoute components={{}} />
-      <Route name="users" path="users" components={{
-        userList: UserListContainer,
-      }} />
-
-      <Route name="chat" path="users/chat/:chatID" components={{
-        userList: UserListContainer,
-        chat: ChatContainer,
-      }} />
-
-      <Redirect from="users/chat" to="/html5client/users/chat/public" />
-      <Redirect from="*" to="/html5client" />
+      <Route name="users" path="users" components={{ userList: UserListContainer }} />
+      <Route
+        name="chat" path="users/chat/:chatID" components={{
+          userList: UserListContainer,
+          chat: ChatContainer,
+        }}
+      />
+      <Redirect from="users/chat" to="/users/chat/public" />
     </Route>
+    <Route name="error" path="/error/:errorCode" component={Base} />
+    <Redirect from="*" to="/error/404" />
   </Router>
 );
